@@ -193,3 +193,24 @@ test("disabling the threshold requires no ledger and still logs observed usage",
   budget.begin();
   assert.match(f.messages[0], /total_tokens=10 daily_total_tokens=untracked/);
 });
+
+test("a rejected request clears uncertainty without resetting recorded tokens or disabling the cap", (t) => {
+  const f = fixture(t);
+  const budget = createDailyBudget(f.options);
+  budget.begin();
+  budget.record({ input_tokens: 40000, output_tokens: 10000 });
+  budget.begin();
+  budget.rejectRequest();
+  assert.equal(f.read().uncertain, false);
+  assert.equal(f.read().totalTokens, 50000);
+  const restarted = createDailyBudget(f.options);
+  restarted.begin();
+  restarted.record({ input_tokens: 8000, output_tokens: 2000 });
+  assert.equal(f.read().totalTokens, 60000);
+  assert.throws(() => restarted.begin(), /daily token budget/);
+  assert.ok(
+    f.messages.some((message) =>
+      message.includes("rejected before generation"),
+    ),
+  );
+});

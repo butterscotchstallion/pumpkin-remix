@@ -88,7 +88,14 @@ export function buildPrompt({ style, character, keepWeirdness }) {
 
 export async function generateImage(
   body,
-  { apiKey, model = "gpt-image-2", fetchImpl = fetch, signal, onUsage } = {},
+  {
+    apiKey,
+    model = "gpt-image-2",
+    fetchImpl = fetch,
+    signal,
+    onUsage,
+    onRejected,
+  } = {},
 ) {
   if (!apiKey)
     throw new GenerationError(
@@ -113,12 +120,40 @@ export async function generateImage(
     signal,
   });
   if (!response.ok) {
-    if (response.status === 429)
-      throw new GenerationError(
-        429,
-        "The image service is busy or its usage limit was reached. Try again shortly.",
-      );
-    if (response.status === 400)
+    // Explicit request rejections did not produce an image. Release only the
+    // pending marker; retain all previously observed tokens. Ambiguous failures
+    // (timeouts, transport errors, 5xx) still fail closed in the caller.
+    if ([400, 401, 403, 422, 429].includes(response.status)) onRejected?.();
+    if (response.status === 429) {
+      const details = await response.json().catch(() => null);
+      const code = details?.error?.code;
+      const quotaMessage =
+        "OpenAI API credits or quota are exhausted. Check API billing and available credits, then retry.";
+      const spendMessage =
+        "OpenAI rejected the request because the API organization or project reached its spend limit. Check the corresponding limit in OpenAI settings before retrying.";
+      const rateMessage =
+        "OpenAI is temporarily rate-limiting image requests. Wait briefly before trying again.";
+      const messages = {
+        insufficient_quota: quotaMessage,
+        credit_balance_exhausted: quotaMessage,
+        organization_spend_limit_exceeded: spendMessage,
+        project_spend_limit_exceeded: spendMessage,
+        organization_usage_limit_exceeded:
+          "The OpenAI API account reached its usage limit. Check the account limits in OpenAI settings before retrying.",
+        rate_limit_exceeded: rateMessage,
+        slow_down: rateMessage,
+      };
+      const message =
+        typeof code === "string" && Object.hasOwn(messages, code)
+          ? messages[code]
+          : details?.error?.type === "insufficient_quota"
+            ? quotaMessage
+            : details?.error?.type === "rate_limit_error"
+              ? rateMessage
+              : "OpenAI rejected the image request due to an API rate or quota limit. Check API billing and usage limits before retrying.";
+      throw new GenerationError(429, message);
+    }
+    if ([400, 422].includes(response.status))
       throw new GenerationError(
         422,
         "The image service could not transform this sketch. Try a simpler drawing or another style.",

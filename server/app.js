@@ -62,7 +62,7 @@ export function createApp({
         });
       let controller,
         timer,
-        usageRecorded = false;
+        usageResolved = false;
       try {
         let bytes = 0,
           chunks = [];
@@ -116,8 +116,12 @@ export function createApp({
           model,
           fetchImpl,
           signal: controller.signal,
+          onRejected: () => {
+            tokenBudget.rejectRequest();
+            usageResolved = true;
+          },
           onUsage: (usage) => {
-            usageRecorded = true;
+            usageResolved = true;
             tokenBudget.record(usage);
           },
         });
@@ -141,7 +145,7 @@ export function createApp({
             },
           );
       } finally {
-        if (controller && !usageRecorded) tokenBudget.record(null);
+        if (controller && !usageResolved) tokenBudget.record(null);
         clearTimeout(timer);
         if (controller) inFlight = false;
       }
