@@ -4,7 +4,7 @@ Draw a pumpkin, choose a visual style and character, and turn the actual sketch 
 
 ## Run locally
 
-Requires Node.js 22.9 or newer.
+Requires Node.js 22.22.2+ or 24.15+ on the supported LTS lines (or Node 26+), matching the test tooling’s requirements.
 
 ```sh
 npm install
