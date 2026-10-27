@@ -3,3 +3,6 @@ dist/
 playwright-report/
 test-results/
 .scratch/
+.env
+.env.*
+!.env.example
