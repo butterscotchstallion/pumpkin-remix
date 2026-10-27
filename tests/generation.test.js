@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PNG } from "pngjs";
+import { mkdirSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   buildPrompt,
   generateImage,
@@ -32,7 +34,12 @@ const body = {
 };
 const imageResult = { data: [{ b64_json: source.split(",")[1] }] };
 async function serve(t, options = {}) {
-  const server = createApp({ apiKey: "server-secret-test-key", ...options });
+  const server = createApp({
+    apiKey: "server-secret-test-key",
+    maxDailyTokens: 0,
+    usageLog: () => {},
+    ...options,
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(
     () =>
@@ -281,5 +288,85 @@ test("hourly budget prevents additional provider calls once exhausted", async (t
   const limited = await app.post();
   assert.equal(limited.status, 429);
   assert.match((await limited.json()).error, /hourly image limit/);
+  assert.equal(calls, 1);
+});
+
+function tokenFile(t) {
+  mkdirSync(".scratch", { recursive: true });
+  const dir = mkdtempSync(resolve(".scratch/http-budget-"));
+  t.after(() => rmSync(dir, { recursive: true }));
+  return resolve(dir, "usage.json");
+}
+test("shared daily budget blocks the next HTTP request without calling the provider", async (t) => {
+  let calls = 0;
+  const app = await serve(t, {
+    maxDailyTokens: 60000,
+    usageFile: tokenFile(t),
+    fetchImpl: async () => {
+      calls++;
+      return Response.json({
+        ...imageResult,
+        usage: {
+          input_tokens: 50000,
+          output_tokens: 10000,
+          total_tokens: 60000,
+        },
+      });
+    },
+  });
+  assert.equal((await app.post()).status, 200);
+  const next = await app.post();
+  assert.equal(next.status, 429);
+  assert.match((await next.json()).error, /daily token budget/);
+  assert.equal(calls, 1);
+});
+test("a successful image without reported usage is returned but cannot lead to more calls", async (t) => {
+  let calls = 0;
+  const app = await serve(t, {
+    maxDailyTokens: 60000,
+    usageFile: tokenFile(t),
+    fetchImpl: async () => {
+      calls++;
+      return Response.json(imageResult);
+    },
+  });
+  assert.equal((await app.post()).status, 200);
+  const next = await app.post();
+  assert.equal(next.status, 503);
+  assert.match((await next.json()).error, /unconfirmed token usage/);
+  assert.equal(calls, 1);
+});
+test("billable usage is recorded even when the response contains no usable image", async (t) => {
+  const file = tokenFile(t);
+  const app = await serve(t, {
+    maxDailyTokens: 60000,
+    usageFile: file,
+    fetchImpl: async () =>
+      Response.json({
+        data: [],
+        usage: { input_tokens: 20, output_tokens: 10 },
+      }),
+  });
+  assert.equal((await app.post()).status, 502);
+  const ledger = JSON.parse(readFileSync(file, "utf8"));
+  assert.equal(ledger.totalTokens, 30);
+  assert.equal(ledger.uncertain, false);
+});
+
+test("a provider failure leaves unreported usage blocked for the day", async (t) => {
+  let calls = 0;
+  const file = tokenFile(t);
+  const app = await serve(t, {
+    maxDailyTokens: 60000,
+    usageFile: file,
+    fetchImpl: async () => {
+      calls++;
+      throw new Error("provider transport failure");
+    },
+  });
+  assert.equal((await app.post()).status, 502);
+  assert.equal(JSON.parse(readFileSync(file, "utf8")).uncertain, true);
+  const next = await app.post();
+  assert.equal(next.status, 503);
   assert.equal(calls, 1);
 });

@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createDailyBudget, dailyTokenLimit } from "./budget.js";
 import { readFile } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import {
@@ -23,9 +24,17 @@ export function createApp({
   publicDir = resolve("dist"),
   timeoutMs = 180_000,
   maxGenerationsPerHour = Number(process.env.MAX_GENERATIONS_PER_HOUR || 12),
+  maxDailyTokens = dailyTokenLimit(),
+  usageFile,
+  usageLog = console.info,
 } = {}) {
   if (!Number.isSafeInteger(maxGenerationsPerHour) || maxGenerationsPerHour < 1)
     throw new Error("MAX_GENERATIONS_PER_HOUR must be a positive integer.");
+  const tokenBudget = createDailyBudget({
+    limit: maxDailyTokens,
+    file: usageFile,
+    log: usageLog,
+  });
   let inFlight = false;
   let windowStart = Date.now(),
     attempts = 0;
@@ -51,7 +60,9 @@ export function createApp({
           error:
             "Another pumpkin is being transformed. Please try again shortly.",
         });
-      let controller, timer;
+      let controller,
+        timer,
+        usageRecorded = false;
       try {
         let bytes = 0,
           chunks = [];
@@ -94,6 +105,7 @@ export function createApp({
             429,
             "This studio reached its hourly image limit. Please try again later.",
           );
+        tokenBudget.begin();
         attempts++;
         inFlight = true;
         controller = new AbortController();
@@ -104,6 +116,10 @@ export function createApp({
           model,
           fetchImpl,
           signal: controller.signal,
+          onUsage: (usage) => {
+            usageRecorded = true;
+            tokenBudget.record(usage);
+          },
         });
         if (!res.destroyed) json(res, 200, result);
       } catch (error) {
@@ -125,6 +141,7 @@ export function createApp({
             },
           );
       } finally {
+        if (controller && !usageRecorded) tokenBudget.record(null);
         clearTimeout(timer);
         if (controller) inFlight = false;
       }
