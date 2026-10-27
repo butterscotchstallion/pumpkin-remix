@@ -370,3 +370,119 @@ test("a provider failure leaves unreported usage blocked for the day", async (t)
   assert.equal(next.status, 503);
   assert.equal(calls, 1);
 });
+
+test("funding a rejected quota request permits retry while preserving earlier usage", async (t) => {
+  const file = tokenFile(t);
+  let calls = 0;
+  const app = await serve(t, {
+    maxDailyTokens: 60000,
+    usageFile: file,
+    fetchImpl: async () => {
+      calls++;
+      if (calls === 2)
+        return Response.json(
+          {
+            error: {
+              code: "insufficient_quota",
+              type: "insufficient_quota",
+              message: "private provider text",
+            },
+          },
+          { status: 429 },
+        );
+      return Response.json({
+        ...imageResult,
+        usage: { input_tokens: 20000, output_tokens: 10000 },
+      });
+    },
+  });
+  assert.equal((await app.post()).status, 200);
+  const quota = await app.post();
+  assert.equal(quota.status, 429);
+  assert.match((await quota.json()).error, /credits or quota/);
+  const rejected = JSON.parse(readFileSync(file, "utf8"));
+  assert.equal(rejected.uncertain, false);
+  assert.equal(rejected.totalTokens, 30000);
+  assert.equal((await app.post()).status, 200);
+  assert.equal((await app.post()).status, 429);
+  assert.equal(calls, 3);
+  assert.equal(JSON.parse(readFileSync(file, "utf8")).totalTokens, 60000);
+});
+test("explicit provider rejection statuses do not cause a day-long lockout", async (t) => {
+  for (const status of [400, 401, 403, 422, 429]) {
+    let calls = 0;
+    const file = tokenFile(t);
+    const app = await serve(t, {
+      maxDailyTokens: 60000,
+      usageFile: file,
+      fetchImpl: async () => {
+        calls++;
+        return calls === 1
+          ? Response.json(
+              { error: { code: "rate_limit_exceeded" } },
+              { status },
+            )
+          : Response.json({
+              ...imageResult,
+              usage: { input_tokens: 100, output_tokens: 50 },
+            });
+      },
+    });
+    assert.ok((await app.post()).status >= 400);
+    assert.equal(JSON.parse(readFileSync(file, "utf8")).uncertain, false);
+    assert.equal((await app.post()).status, 200);
+    assert.equal(calls, 2);
+  }
+});
+test("429 errors distinguish credits, spend limits, usage limits and temporary throttling without leaking provider text", async () => {
+  const cases = [
+    [{ code: "credit_balance_exhausted" }, /credits or quota/],
+    [
+      { code: "organization_spend_limit_exceeded", type: "insufficient_quota" },
+      /spend limit/,
+    ],
+    [
+      { code: "project_spend_limit_exceeded", type: "insufficient_quota" },
+      /spend limit/,
+    ],
+    [
+      { code: "organization_usage_limit_exceeded", type: "insufficient_quota" },
+      /account reached its usage limit/,
+    ],
+    [{ code: "unknown", type: "insufficient_quota" }, /credits or quota/],
+    [{ code: "rate_limit_exceeded" }, /temporarily rate-limiting/],
+    [{ code: "slow_down" }, /temporarily rate-limiting/],
+    [{ code: "unknown" }, /rate or quota limit/],
+  ];
+  for (const [error, expected] of cases) {
+    let rejected = false;
+    await assert.rejects(
+      () =>
+        generateImage(body, {
+          apiKey: "key",
+          onRejected: () => (rejected = true),
+          fetchImpl: async () =>
+            Response.json(
+              { error: { ...error, message: "private provider text" } },
+              { status: 429 },
+            ),
+        }),
+      (e) =>
+        e.status === 429 &&
+        expected.test(e.message) &&
+        !e.message.includes("private provider text"),
+    );
+    assert.equal(rejected, true);
+  }
+  let rejected = false;
+  await assert.rejects(
+    () =>
+      generateImage(body, {
+        apiKey: "key",
+        onRejected: () => (rejected = true),
+        fetchImpl: async () => new Response("not json", { status: 429 }),
+      }),
+    (e) => e.status === 429,
+  );
+  assert.equal(rejected, true);
+});

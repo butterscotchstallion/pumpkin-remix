@@ -109,5 +109,14 @@ export function createDailyBudget({
       `Pumpkin AI usage (observed): input_tokens=${usage?.input ?? "unknown"} output_tokens=${usage?.output ?? "unknown"} total_tokens=${usage?.total ?? "unknown"} daily_total_tokens=${limit ? state.totalTokens : "untracked"} usage_complete=${Boolean(usage)}`,
     );
   }
-  return { begin, record };
+  function rejectRequest() {
+    if (limit) {
+      state.uncertain = false;
+      save();
+    }
+    log(
+      `Pumpkin AI request rejected before generation: daily_total_tokens=${limit ? state.totalTokens : "untracked"}`,
+    );
+  }
+  return { begin, record, rejectRequest };
 }
