@@ -1,28 +1,749 @@
-import React, {useState,useRef,useEffect} from 'react';
-import {createRoot} from 'react-dom/client';
-import {ArrowUpRight, ArrowRight, Sparkles, Pencil, Eraser, Undo2, Trash2, Download, Play, X, Check, MoveHorizontal, Grid2X2, Leaf} from 'lucide-react';
-import './style.css';
-const styles=[{name:'Claymation',desc:'Handmade. A little wonky.',emoji:'🎃',color:'#e8dcc6',filter:'none'},{name:'Cozy watercolor',desc:'Soft edges, warm feelings.',emoji:'🎨',color:'#e7e8dd',filter:'water'},{name:'Spooky cinematic',desc:'A beautifully dark side.',emoji:'🌙',color:'#d9dce0',filter:'spooky'},{name:'Crochet plushie',desc:'Made of pure cozy.',emoji:'🧶',color:'#eaded3',filter:'crochet'}];
-function PumpkinLogo(){return <svg viewBox="0 0 48 48" fill="none"><path d="M25 13c0-7 5-8 7-8" stroke="#526042" strokeWidth="4" strokeLinecap="round"/><path d="M24 15C6 5 0 36 15 40c5 3 14 3 19-1C47 33 43 9 24 15Z" fill="#e97839"/><ellipse cx="24" cy="27" rx="10" ry="15" fill="#ef8946"/><path d="m15 24 3-1m12 0 2 1m-13 8q5 4 10-1" stroke="#713d2a" strokeWidth="2.5" strokeLinecap="round"/></svg>}
-const demoPaths=[[[195,165],[183,131],[189,103],[202,83],[216,85],[210,111],[211,138],[220,162]],[[198,164],[168,151],[135,161],[111,188],[102,225],[110,264],[135,288],[171,297],[204,291],[237,300],[274,287],[293,256],[297,218],[279,183],[251,166],[224,168]],[[172,160],[151,185],[145,218],[148,253],[165,287]],[[222,169],[238,193],[246,226],[242,262],[231,290]],[[156,209],[161,204],[167,207],[166,216],[159,218],[156,209]],[[242,208],[247,208],[248,214],[243,215],[242,208]],[[170,247],[184,256],[198,260],[213,257],[229,244],[220,269],[203,278],[185,270],[170,247]],[[190,260],[190,268],[198,269],[198,261]]];
-function App(){const [style,setStyle]=useState(0),[weird,setWeird]=useState(true),[tool,setTool]=useState('pen'),[color,setColor]=useState('#b85e30'),[paths,setPaths]=useState(demoPaths.map(p=>({points:p,color:'#b85e30',size:3}))),[size,setSize]=useState(3),[busy,setBusy]=useState(false),[generated,setGenerated]=useState(true),[mode,setMode]=useState('side'),[split,setSplit]=useState(50),[modal,setModal]=useState(null),[playing,setPlaying]=useState(false),[toast,setToast]=useState('');const canvas=useRef(null),drawing=useRef(false),active=useRef(null),timer=useRef([]);
-useEffect(()=>{const c=canvas.current,ctx=c.getContext('2d');ctx.clearRect(0,0,400,360);paths.forEach(p=>{ctx.beginPath();ctx.strokeStyle=p.color;ctx.lineWidth=p.size;ctx.lineCap='round';ctx.lineJoin='round';p.points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke()})},[paths]);
-useEffect(()=>()=>timer.current.forEach(clearTimeout),[]);
-function notify(t){setToast(t);setTimeout(()=>setToast(''),3000)}
-function point(e){const r=canvas.current.getBoundingClientRect();return [(e.clientX-r.left)*400/r.width,(e.clientY-r.top)*360/r.height]}
-function start(e){e.currentTarget.setPointerCapture(e.pointerId);drawing.current=true;active.current={points:[point(e)],color:tool==='eraser'?'#fcfaf5':color,size:tool==='eraser'?24:size};setPaths(p=>[...p,active.current]);}
-function move(e){if(!drawing.current)return;active.current.points.push(point(e));setPaths(p=>[...p]);}
-function transform(){if(!paths.length){notify('Add a little scribble first.');return}setBusy(true);setGenerated(false);setTimeout(()=>{setGenerated(true);setBusy(false);notify('A little weird. A lot of wonderful.');},1500)}
-function play(){setPlaying(true);setStyle(0);setPaths([]);setGenerated(false);setMode('side');demoPaths.forEach((p,i)=>timer.current.push(setTimeout(()=>setPaths(v=>[...v,{points:p,color:'#b85e30',size:3}]),400+i*400)));timer.current.push(setTimeout(()=>setBusy(true),3800),setTimeout(()=>{setBusy(false);setGenerated(true)},5300),setTimeout(()=>setStyle(3),8000),setTimeout(()=>setMode('all'),10500),setTimeout(()=>setPlaying(false),13000));}
-function download(){const a=document.createElement('a');a.href='/pumpkin-clay.png';a.download='pumpkin-remixed.png';a.click();notify('Your pumpkin is coming with you.');}
-const result=(idx,small=false)=><div className={`result-art ${styles[idx].filter} ${small?'small':''}`}><img src="/pumpkin-clay.png" alt={`${styles[idx].name} pumpkin character with a crooked stem and mismatched eyes`}/>{idx===3&&<div className="yarn-texture"/>}</div>;
-return <><header><a className="brand" href="/" aria-label="Pumpkin Remixed home"><PumpkinLogo/><span>pumpkin<span className="brand-comma">,</span><br/><b>remixed.</b></span></a><nav><span className="nav-tag"><i/> A little AI. A lot of personality.</span><button onClick={()=>setModal('about')}>What is this? <ArrowUpRight size={15}/></button><span className="nav-divider"/><button onClick={()=>setModal('about')} className="made">Made for the wonderfully weird <ArrowUpRight size={14}/></button></nav></header>
-<main><section className="intro"><div className="eyebrow"><span>YOUR DOODLE. REIMAGINED.</span><span className="little-line"/></div><h1>A little scribble.<br/>A little <span>pumpkin magic.</span><Sparkles className="title-spark"/></h1><p>Draw a pumpkin. Pick a vibe. Meet your new little creature.<br/>The wonky bits? That’s where the magic lives.</p><button className="demo-button" onClick={play} disabled={playing}><span className="play-circle"><Play size={12} fill="currentColor"/></span>{playing?'The magic is happening…':'Watch the magic'}<span className="seconds">13 sec</span></button><div className="intro-doodle"><svg viewBox="0 0 120 85"><path d="M15 14c19 28 39 39 70 31m-13-11 15 10-12 13"/></svg><span>no art skills<br/>required, promise.</span></div></section>
-<section className="studio"><div className="studio-top"><div className="step"><span className="step-number">1</span><h2>Make your mark</h2><span className="step-note">Perfectly imperfect, please.</span></div><div className="studio-status"><i/> YOUR LITTLE CREATIVE CORNER</div></div><div className="workspace"><div className="sketch-side"><div className="panel-caption"><span><Pencil size={14}/> YOUR SKETCH</span><button onClick={()=>{setPaths(demoPaths.map(p=>({points:p,color:'#b85e30',size:3})));notify('A goofy little starting point.')}}>Try an example <ArrowUpRight size={13}/></button></div><div className="canvas-wrap"><div className="paper-corner tl"/><div className="paper-corner tr"/><div className="paper-corner bl"/><div className="paper-corner br"/><canvas ref={canvas} width="400" height="360" onPointerDown={start} onPointerMove={move} onPointerUp={()=>drawing.current=false} onPointerCancel={()=>drawing.current=false} aria-label="Draw your pumpkin here"/>{!paths.length&&<span className="canvas-placeholder">Every little monster starts with a scribble.</span>}<span className="sketch-note">a wonky start is a good start ♡</span></div><div className="drawing-tools"><div className="tool-group"><button aria-label="Pencil" className={tool==='pen'?'active':''} onClick={()=>setTool('pen')}><Pencil size={18}/></button><button aria-label="Eraser" className={tool==='eraser'?'active':''} onClick={()=>setTool('eraser')}><Eraser size={18}/></button><span className="tool-divider"/>{['#b85e30','#494b39','#bb974c'].map(c=><button key={c} aria-label={`Ink ${c}`} className={`color ${color===c?'selected':''}`} onClick={()=>{setColor(c);setTool('pen')}}><span style={{background:c}}/></button>)}<select aria-label="Brush size" value={size} onChange={e=>setSize(+e.target.value)}><option value="3">3 px</option><option value="5">5 px</option><option value="8">8 px</option></select></div><div className="tool-group"><button aria-label="Undo stroke" onClick={()=>setPaths(p=>p.slice(0,-1))}><Undo2 size={17}/></button><button aria-label="Clear sketch" onClick={()=>setPaths([])}><Trash2 size={17}/></button></div></div></div>
-<div className="transform-divider"><span><Sparkles size={18}/></span></div><div className="result-side"><div className="panel-caption"><span><Sparkles size={14}/> YOUR LITTLE MASTERPIECE</span><span className="style-badge"><i/>{styles[style].name}</span></div><div className={`result-stage ${busy?'loading':''}`}>{busy?<div className="loading-content"><Sparkles size={35}/><h3>Finding the magic…</h3><p>Keeping every wonderfully wonky bit.</p></div>:generated?<>{mode==='all'?<div className="all-results">{styles.map((s,i)=><button key={s.name} onClick={()=>{setStyle(i);setMode('side')}}>{result(i,true)}<span>{s.name}</span></button>)}</div>:<>{result(style)}{mode==='slider'&&<div className="sketch-overlay" style={{width:`${split}%`}}><svg viewBox="0 0 400 360">{paths.map((p,i)=><polyline key={i} points={p.points.map(p=>p.join(',')).join(' ')} fill="none" stroke={p.color} strokeWidth={p.size} strokeLinecap="round" strokeLinejoin="round"/>)}</svg></div>}{mode==='slider'&&<><div className="slider-line" style={{left:`${split}%`}}><span><MoveHorizontal size={18}/></span></div><input className="comparison-range" aria-label="Compare sketch and result" type="range" value={split} onChange={e=>setSplit(e.target.value)}/></>}</>}<div className="result-tag"><span>✦</span> Same little weirdo. New dimension.</div></>:<div className="loading-content"><Sparkles size={35}/><h3>Your creature is waiting</h3><p>Give your sketch a little pumpkin magic.</p></div>}</div><div className="result-tools"><div className="view-options"><button className={mode==='side'?'selected':''} onClick={()=>setMode('side')}><span className="two-panels">▥</span> Side by side</button><button className={mode==='slider'?'selected':''} onClick={()=>setMode('slider')}><MoveHorizontal size={15}/> Compare</button><button aria-label="Show all four styles" className={mode==='all'?'selected':''} onClick={()=>setMode('all')}><Grid2X2 size={16}/></button></div><button className="download" aria-label="Download pumpkin" onClick={download} disabled={!generated}><Download size={17}/></button></div></div></div>
-<div className="style-section"><div className="step"><span className="step-number">2</span><h2>Pick a little personality</h2><span className="step-note">One sketch. So many possibilities.</span></div><div className="style-cards">{styles.map((s,i)=><button key={s.name} className={`style-card ${i===style?'chosen':''}`} onClick={()=>setStyle(i)}><div className={`style-thumb ${s.filter}`} style={{background:s.color}}><img src="/pumpkin-clay.png" alt=""/>{i===3&&<div className="yarn-texture"/>}</div><div className="style-info"><strong>{s.name}</strong><span>{s.desc}</span></div><span className="radio">{i===style&&<Check size={12}/>}</span></button>)}</div></div>
-<div className="studio-bottom"><div className="weird-setting"><button className={`switch ${weird?'on':''}`} role="switch" aria-checked={weird} aria-label="Keep my weirdness" onClick={()=>setWeird(!weird)}><span/></button><div><strong>Keep my weirdness <Sparkles size={13}/></strong><p>{weird?'Your quirks stay. That’s the whole point.':'A little more polished. A little less wonky.'}</p></div></div><div className="transform-action"><span>No perfect circles necessary.</span><button className="primary" onClick={transform} disabled={busy}><Sparkles size={18}/>{busy?'Making a little magic…':'Make some magic'}<ArrowRight size={18}/></button></div></div></section>
-<div className="under-studio"><span><Leaf size={15}/> Demo with pre-made AI artwork · Live generation coming soon.</span><span>Little sketch. Big main-character energy. <span className="tiny-star">✳</span></span></div>
-<section className="bottom-note"><span className="note-star">✳</span><h2>Perfect is boring.<br/><em>Make something you.</em></h2><p>The extra-long stem. The one tiny eye. The questionable grin.<br/>Those aren’t mistakes. They’re the best part.</p><span className="note-squiggle">〰</span></section></main><footer><span>© 2026 Pumpkin, Remixed.</span><span>Made with a little imagination <span className="heart">♡</span></span><button onClick={()=>setModal('about')}>About this experiment <ArrowUpRight size={13}/></button></footer>
-{toast&&<div className="toast"><Check size={17}/>{toast}</div>}{modal&&<div className="modal-backdrop" onClick={()=>setModal(null)}><div className="modal" onClick={e=>e.stopPropagation()}><button className="close" aria-label="Close" onClick={()=>setModal(null)}><X/></button><PumpkinLogo/><h2>A little AI. A lot of you.</h2><p>Pumpkin, Remixed is a playful sketch-to-character experiment. Draw something wonderfully imperfect, choose a style, and explore your pumpkin’s possibilities.</p><p>This interactive preview uses a pre-made AI illustration. Style treatments are local previews; live sketch-to-image generation isn’t connected yet.</p><button className="primary" onClick={()=>setModal(null)}>Let’s make something <ArrowRight size={16}/></button></div></div>}</>}
-createRoot(document.getElementById('root')).render(<App/>);
+import React, { useState, useRef, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  ArrowUpRight,
+  ArrowRight,
+  Sparkles,
+  Pencil,
+  Eraser,
+  Undo2,
+  Trash2,
+  Download,
+  Play,
+  X,
+  Check,
+  MoveHorizontal,
+  Grid2X2,
+  Leaf,
+} from "lucide-react";
+import "./style.css";
+import { useGeneration, matchingResult } from "./generation.js";
+import Demo from "./Demo.jsx";
+const styles = [
+  {
+    name: "Claymation",
+    desc: "Handmade. A little wonky.",
+    emoji: "🎃",
+    color: "#e8dcc6",
+    filter: "none",
+  },
+  {
+    name: "Cozy watercolor",
+    desc: "Soft edges, warm feelings.",
+    emoji: "🎨",
+    color: "#e7e8dd",
+    filter: "water",
+  },
+  {
+    name: "Spooky cinematic",
+    desc: "A beautifully dark side.",
+    emoji: "🌙",
+    color: "#d9dce0",
+    filter: "spooky",
+  },
+  {
+    name: "Crochet plushie",
+    desc: "Made of pure cozy.",
+    emoji: "🧶",
+    color: "#eaded3",
+    filter: "crochet",
+  },
+];
+function PumpkinLogo() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none">
+      <path
+        d="M25 13c0-7 5-8 7-8"
+        stroke="#526042"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M24 15C6 5 0 36 15 40c5 3 14 3 19-1C47 33 43 9 24 15Z"
+        fill="#e97839"
+      />
+      <ellipse cx="24" cy="27" rx="10" ry="15" fill="#ef8946" />
+      <path
+        d="m15 24 3-1m12 0 2 1m-13 8q5 4 10-1"
+        stroke="#713d2a"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+const demoPaths = [
+  [
+    [195, 165],
+    [183, 131],
+    [189, 103],
+    [202, 83],
+    [216, 85],
+    [210, 111],
+    [211, 138],
+    [220, 162],
+  ],
+  [
+    [198, 164],
+    [168, 151],
+    [135, 161],
+    [111, 188],
+    [102, 225],
+    [110, 264],
+    [135, 288],
+    [171, 297],
+    [204, 291],
+    [237, 300],
+    [274, 287],
+    [293, 256],
+    [297, 218],
+    [279, 183],
+    [251, 166],
+    [224, 168],
+  ],
+  [
+    [172, 160],
+    [151, 185],
+    [145, 218],
+    [148, 253],
+    [165, 287],
+  ],
+  [
+    [222, 169],
+    [238, 193],
+    [246, 226],
+    [242, 262],
+    [231, 290],
+  ],
+  [
+    [156, 209],
+    [161, 204],
+    [167, 207],
+    [166, 216],
+    [159, 218],
+    [156, 209],
+  ],
+  [
+    [242, 208],
+    [247, 208],
+    [248, 214],
+    [243, 215],
+    [242, 208],
+  ],
+  [
+    [170, 247],
+    [184, 256],
+    [198, 260],
+    [213, 257],
+    [229, 244],
+    [220, 269],
+    [203, 278],
+    [185, 270],
+    [170, 247],
+  ],
+  [
+    [190, 260],
+    [190, 268],
+    [198, 269],
+    [198, 261],
+  ],
+];
+function App() {
+  const [style, setStyle] = useState(0),
+    [weird, setWeird] = useState(true),
+    [tool, setTool] = useState("pen"),
+    [color, setColor] = useState("#b85e30"),
+    [paths, setPaths] = useState(
+      demoPaths.map((p) => ({ points: p, color: "#b85e30", size: 3 })),
+    ),
+    [size, setSize] = useState(3),
+    [character, setCharacter] = useState("original"),
+    [mode, setMode] = useState("side"),
+    [split, setSplit] = useState(50),
+    [modal, setModal] = useState(null),
+    [toast, setToast] = useState("");
+  const canvas = useRef(null),
+    drawing = useRef(false),
+    active = useRef(null);
+  const {
+    configured,
+    results,
+    selected,
+    busy,
+    error,
+    progress,
+    signature,
+    transform,
+    cancel,
+  } = useGeneration({ paths, weird, character, canvas, style });
+  const generated = Boolean(selected);
+  useEffect(() => {
+    const c = canvas.current,
+      ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, 400, 400);
+    paths.forEach((p) => {
+      ctx.beginPath();
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = p.size;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      p.points.forEach(([x, y], i) =>
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y),
+      );
+      ctx.stroke();
+    });
+  }, [paths]);
+  function notify(t) {
+    setToast(t);
+    setTimeout(() => setToast(""), 3000);
+  }
+  function point(e) {
+    const r = canvas.current.getBoundingClientRect();
+    return [
+      ((e.clientX - r.left) * 400) / r.width,
+      ((e.clientY - r.top) * 400) / r.height,
+    ];
+  }
+  function start(e) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drawing.current = true;
+    active.current = {
+      points: [point(e)],
+      color: tool === "eraser" ? "#fcfaf5" : color,
+      size: tool === "eraser" ? 24 : size,
+    };
+    setPaths((p) => [...p, active.current]);
+  }
+  function move(e) {
+    if (!drawing.current) return;
+    active.current.points.push(point(e));
+    setPaths((p) => [...p]);
+  }
+  function download() {
+    if (!selected) return;
+    const a = document.createElement("a");
+    a.href = selected.image;
+    a.download = `pumpkin-${styles[style].name.toLowerCase().replaceAll(" ", "-")}.png`;
+    a.click();
+    notify("Your pumpkin is coming with you.");
+  }
+  const result = (idx, small = false) => {
+    const item = matchingResult(results, idx, signature);
+    return item ? (
+      <div className={`result-art live-result ${small ? "small" : ""}`}>
+        <img
+          src={item.image}
+          alt={`${styles[idx].name} transformation of your pumpkin sketch`}
+        />
+      </div>
+    ) : (
+      <div className="missing-result">
+        <Sparkles size={20} />
+        <span>{styles[idx].name}</span>
+        <small>Not generated for this sketch yet</small>
+      </div>
+    );
+  };
+  return (
+    <>
+      <header>
+        <a className="brand" href="/" aria-label="Pumpkin Remixed home">
+          <PumpkinLogo />
+          <span>
+            pumpkin<span className="brand-comma">,</span>
+            <br />
+            <b>remixed.</b>
+          </span>
+        </a>
+        <nav>
+          <span className="nav-tag">
+            <i /> A little AI. A lot of personality.
+          </span>
+          <button onClick={() => setModal("about")}>
+            What is this? <ArrowUpRight size={15} />
+          </button>
+          <span className="nav-divider" />
+          <button onClick={() => setModal("about")} className="made">
+            Made for the wonderfully weird <ArrowUpRight size={14} />
+          </button>
+        </nav>
+      </header>
+      <main>
+        <section className="intro">
+          <div className="eyebrow">
+            <span>YOUR DOODLE. REIMAGINED.</span>
+            <span className="little-line" />
+          </div>
+          <h1>
+            A little scribble.
+            <br />A little <span>pumpkin magic.</span>
+            <Sparkles className="title-spark" />
+          </h1>
+          <p>
+            Draw a pumpkin. Pick a vibe. Meet your new little creature.
+            <br />
+            The wonky bits? That’s where the magic lives.
+          </p>
+          <button
+            className="demo-button"
+            onClick={() => setModal("demo")}
+            disabled={busy}
+          >
+            <span className="play-circle">
+              <Play size={12} fill="currentColor" />
+            </span>
+            Watch the concept demo
+            <span className="seconds">13 sec</span>
+          </button>
+          <div className="intro-doodle">
+            <svg viewBox="0 0 120 85">
+              <path d="M15 14c19 28 39 39 70 31m-13-11 15 10-12 13" />
+            </svg>
+            <span>
+              no art skills
+              <br />
+              required, promise.
+            </span>
+          </div>
+        </section>
+        <section className="studio">
+          <div className="studio-top">
+            <div className="step">
+              <span className="step-number">1</span>
+              <h2>Make your mark</h2>
+              <span className="step-note">Perfectly imperfect, please.</span>
+            </div>
+            <div className="studio-status">
+              <i /> YOUR LITTLE CREATIVE CORNER
+            </div>
+          </div>
+          <div className="workspace">
+            <div className="sketch-side">
+              <div className="panel-caption">
+                <span>
+                  <Pencil size={14} /> YOUR SKETCH
+                </span>
+                <button
+                  onClick={() => {
+                    setPaths(
+                      demoPaths.map((p) => ({
+                        points: p,
+                        color: "#b85e30",
+                        size: 3,
+                      })),
+                    );
+                    notify("A goofy little starting point.");
+                  }}
+                >
+                  Try an example <ArrowUpRight size={13} />
+                </button>
+              </div>
+              <div className="canvas-wrap">
+                <div className="paper-corner tl" />
+                <div className="paper-corner tr" />
+                <div className="paper-corner bl" />
+                <div className="paper-corner br" />
+                <canvas
+                  ref={canvas}
+                  width="400"
+                  height="400"
+                  onPointerDown={start}
+                  onPointerMove={move}
+                  onPointerUp={() => (drawing.current = false)}
+                  onPointerCancel={() => (drawing.current = false)}
+                  aria-label="Draw your pumpkin here"
+                />
+                {!paths.length && (
+                  <span className="canvas-placeholder">
+                    Every little monster starts with a scribble.
+                  </span>
+                )}
+                <span className="sketch-note">
+                  a wonky start is a good start ♡
+                </span>
+              </div>
+              <div className="drawing-tools">
+                <div className="tool-group">
+                  <button
+                    aria-label="Pencil"
+                    className={tool === "pen" ? "active" : ""}
+                    onClick={() => setTool("pen")}
+                  >
+                    <Pencil size={18} />
+                  </button>
+                  <button
+                    aria-label="Eraser"
+                    className={tool === "eraser" ? "active" : ""}
+                    onClick={() => setTool("eraser")}
+                  >
+                    <Eraser size={18} />
+                  </button>
+                  <span className="tool-divider" />
+                  {["#b85e30", "#494b39", "#bb974c"].map((c) => (
+                    <button
+                      key={c}
+                      aria-label={`Ink ${c}`}
+                      className={`color ${color === c ? "selected" : ""}`}
+                      onClick={() => {
+                        setColor(c);
+                        setTool("pen");
+                      }}
+                    >
+                      <span style={{ background: c }} />
+                    </button>
+                  ))}
+                  <select
+                    aria-label="Brush size"
+                    value={size}
+                    onChange={(e) => setSize(+e.target.value)}
+                  >
+                    <option value="3">3 px</option>
+                    <option value="5">5 px</option>
+                    <option value="8">8 px</option>
+                  </select>
+                </div>
+                <div className="tool-group">
+                  <button
+                    aria-label="Undo stroke"
+                    onClick={() => setPaths((p) => p.slice(0, -1))}
+                  >
+                    <Undo2 size={17} />
+                  </button>
+                  <button
+                    aria-label="Clear sketch"
+                    onClick={() => setPaths([])}
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="transform-divider">
+              <span>
+                <Sparkles size={18} />
+              </span>
+            </div>
+            <div className="result-side">
+              <div className="panel-caption">
+                <span>
+                  <Sparkles size={14} /> YOUR LITTLE MASTERPIECE
+                </span>
+                <span className="style-badge">
+                  <i />
+                  {styles[style].name}
+                </span>
+              </div>
+              <div className={`result-stage ${busy ? "loading" : ""}`}>
+                {busy ? (
+                  <div className="loading-content">
+                    <Sparkles size={35} />
+                    <h3>{progress}</h3>
+                    <p>Image creation may take a few minutes.</p>
+                    <button className="text-button" onClick={cancel}>
+                      Cancel generation
+                    </button>
+                  </div>
+                ) : generated || mode === "all" ? (
+                  <>
+                    {mode === "all" ? (
+                      <div className="all-results">
+                        {styles.map((s, i) => (
+                          <button
+                            key={s.name}
+                            onClick={() => {
+                              setStyle(i);
+                              setMode("side");
+                            }}
+                          >
+                            {result(i, true)}
+                            <span>{s.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        {result(style)}
+                        {mode === "slider" && (
+                          <div
+                            className="sketch-overlay"
+                            style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}
+                          >
+                            <img
+                              className="comparison-source"
+                              src={selected.source}
+                              alt="The sketch used for this transformation"
+                            />
+                          </div>
+                        )}
+                        {mode === "slider" && (
+                          <>
+                            <div
+                              className="slider-line"
+                              style={{ left: `${split}%` }}
+                            >
+                              <span>
+                                <MoveHorizontal size={18} />
+                              </span>
+                            </div>
+                            <input
+                              className="comparison-range"
+                              aria-label="Compare sketch and result"
+                              type="range"
+                              value={split}
+                              onChange={(e) => setSplit(e.target.value)}
+                            />
+                          </>
+                        )}
+                      </>
+                    )}
+                    <div className="result-tag">
+                      <span>✦</span>{" "}
+                      {weird
+                        ? "Your quirks, reimagined."
+                        : "A little more polished."}
+                    </div>
+                  </>
+                ) : (
+                  <div className="loading-content">
+                    <Sparkles size={35} />
+                    <h3>Your creature is waiting</h3>
+                    <p>
+                      Generate {styles[style].name.toLowerCase()} for this
+                      sketch.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="result-tools">
+                <div className="view-options">
+                  <button
+                    className={mode === "side" ? "selected" : ""}
+                    onClick={() => setMode("side")}
+                  >
+                    <span className="two-panels">▥</span> Side by side
+                  </button>
+                  <button
+                    className={mode === "slider" ? "selected" : ""}
+                    onClick={() => setMode("slider")}
+                    disabled={!generated || busy}
+                  >
+                    <MoveHorizontal size={15} /> Compare
+                  </button>
+                  <button
+                    aria-label="Show all four styles"
+                    className={mode === "all" ? "selected" : ""}
+                    onClick={() => setMode("all")}
+                  >
+                    <Grid2X2 size={16} />
+                  </button>
+                </div>
+                <button
+                  className="download"
+                  aria-label="Download pumpkin"
+                  onClick={download}
+                  disabled={!generated || busy}
+                >
+                  <Download size={17} />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="style-section">
+            <div className="step">
+              <span className="step-number">2</span>
+              <h2>Pick a little personality</h2>
+              <span className="step-note">
+                One sketch. So many possibilities.
+              </span>
+            </div>
+            <div className="style-cards">
+              {styles.map((s, i) => (
+                <button
+                  key={s.name}
+                  className={`style-card ${i === style ? "chosen" : ""}`}
+                  onClick={() => setStyle(i)}
+                >
+                  <div
+                    className={`style-thumb ${s.filter}`}
+                    style={{ background: s.color }}
+                  >
+                    <img src="/pumpkin-clay.png" alt="" />
+                    {i === 3 && <div className="yarn-texture" />}
+                  </div>
+                  <div className="style-info">
+                    <strong>{s.name}</strong>
+                    <span>{s.desc}</span>
+                  </div>
+                  <span className="radio">
+                    {i === style && <Check size={12} />}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="character-row">
+            <label htmlFor="character">Give your creature a role</label>
+            <select
+              id="character"
+              value={character}
+              onChange={(e) => setCharacter(e.target.value)}
+            >
+              <option value="original">Just my pumpkin</option>
+              <option value="knight">Tiny knight</option>
+              <option value="swamp">Swamp monster</option>
+              <option value="explorer">Space explorer</option>
+              <option value="aristocrat">Elegant aristocrat</option>
+            </select>
+            <span>Same personality. A new little adventure.</span>
+          </div>
+          {error && (
+            <div className="generation-error" role="alert">
+              {error}
+            </div>
+          )}
+          {mode === "all" && (
+            <div className="gallery-action">
+              <p>Generate each style from the same sketch and settings.</p>
+              <button
+                className="text-button"
+                disabled={
+                  busy ||
+                  configured === false ||
+                  styles.every((_, i) => matchingResult(results, i, signature))
+                }
+                onClick={() => transform(true)}
+              >
+                Generate missing styles (
+                {
+                  styles.filter(
+                    (_, i) => !matchingResult(results, i, signature),
+                  ).length
+                }{" "}
+                images)
+              </button>
+            </div>
+          )}
+          <div className="studio-bottom">
+            <div className="weird-setting">
+              <button
+                className={`switch ${weird ? "on" : ""}`}
+                role="switch"
+                aria-checked={weird}
+                aria-label="Keep my weirdness"
+                onClick={() => setWeird(!weird)}
+              >
+                <span />
+              </button>
+              <div>
+                <strong>
+                  Keep my weirdness <Sparkles size={13} />
+                </strong>
+                <p>
+                  {weird
+                    ? "Your quirks stay. That’s the whole point."
+                    : "A little more polished. A little less wonky."}
+                </p>
+              </div>
+            </div>
+            <div className="transform-action">
+              <span>
+                {configured === false
+                  ? "Live AI isn’t configured yet."
+                  : "One image per transformation."}
+              </span>
+              <button
+                className="primary"
+                onClick={() => transform()}
+                disabled={busy || configured === false}
+              >
+                <Sparkles size={18} />
+                {busy ? "Making a little magic…" : "Make some magic"}
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </section>
+        <div className="under-studio">
+          <span>
+            <Leaf size={15} />{" "}
+            {configured === null
+              ? "Checking the pumpkin studio…"
+              : configured
+                ? "Live AI · Your sketch is sent to OpenAI only when you generate."
+                : "Draw and explore the demo. Live generation needs a server API key."}
+          </span>
+          <span>
+            Little sketch. Big main-character energy.{" "}
+            <span className="tiny-star">✳</span>
+          </span>
+        </div>
+        <section className="bottom-note">
+          <span className="note-star">✳</span>
+          <h2>
+            Perfect is boring.
+            <br />
+            <em>Make something you.</em>
+          </h2>
+          <p>
+            The extra-long stem. The one tiny eye. The questionable grin.
+            <br />
+            Those aren’t mistakes. They’re the best part.
+          </p>
+          <span className="note-squiggle">〰</span>
+        </section>
+      </main>
+      <footer>
+        <span>© 2026 Pumpkin, Remixed.</span>
+        <span>
+          Made with a little imagination <span className="heart">♡</span>
+        </span>
+        <button onClick={() => setModal("about")}>
+          About this experiment <ArrowUpRight size={13} />
+        </button>
+      </footer>
+      {toast && (
+        <div className="toast" role="status">
+          <Check size={17} />
+          {toast}
+        </div>
+      )}
+      {modal && (
+        <div className="modal-backdrop" onClick={() => setModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="close"
+              aria-label="Close"
+              onClick={() => setModal(null)}
+            >
+              <X />
+            </button>
+            {modal === "demo" ? (
+              <Demo paths={demoPaths} />
+            ) : (
+              <>
+                <PumpkinLogo />
+                <h2>A little AI. A lot of you.</h2>
+                <p>
+                  Pumpkin, Remixed is a playful sketch-to-character experiment.
+                  Draw something wonderfully imperfect, choose a style, and
+                  explore your pumpkin’s possibilities.
+                </p>
+                <p>
+                  When you generate, your canvas is sent to OpenAI as an
+                  image-editing reference. Your style, character, and weirdness
+                  setting guide the transformation. Keeping every quirk is the
+                  goal, but results can vary. The concept demo and style
+                  thumbnails use pre-made artwork.
+                </p>
+                <button className="primary" onClick={() => setModal(null)}>
+                  Let’s make something <ArrowRight size={16} />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+createRoot(document.getElementById("root")).render(<App />);
