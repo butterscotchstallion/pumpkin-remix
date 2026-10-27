@@ -88,7 +88,7 @@ export function buildPrompt({ style, character, keepWeirdness }) {
 
 export async function generateImage(
   body,
-  { apiKey, model = "gpt-image-2", fetchImpl = fetch, signal } = {},
+  { apiKey, model = "gpt-image-2", fetchImpl = fetch, signal, onUsage } = {},
 ) {
   if (!apiKey)
     throw new GenerationError(
@@ -134,6 +134,7 @@ export async function generateImage(
     );
   }
   const result = await response.json();
+  onUsage?.(result.usage);
   const encoded = result.data?.[0]?.b64_json;
   if (typeof encoded !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))
     throw new GenerationError(
