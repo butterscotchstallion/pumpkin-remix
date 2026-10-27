@@ -2,6 +2,8 @@
 
 Draw a pumpkin, choose a visual style and character, and turn the actual sketch into a polished creature with OpenAI image editing. “Keep my weirdness” starts enabled and asks the model to preserve the drawing’s asymmetry, long stems, mismatched eyes, expression, and placement. Results can vary; the model cannot guarantee pixel-perfect preservation.
 
+![Pumpkin Remix UI](pumpkin-remix-UI.jpg)
+
 ## Run locally
 
 Requires Node.js 22.22.2+ or 24.15+ on the supported LTS lines (or Node 26+), matching the test tooling’s requirements.
